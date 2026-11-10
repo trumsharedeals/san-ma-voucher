@@ -28,6 +28,10 @@
         </h1>
         <p class="text-emerald-100 text-sm mt-1">Update liên tục mã giảm giá nhập tay của Grab 11.11</p>
       </div>
+      <!-- Nút bổ sung mã cho người dùng -->
+      <a href="https://zalo.me" target="_blank" class="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold text-xs px-4 py-2.5 rounded-xl shadow transition flex items-center gap-2">
+        <span>➕</span> Đóng góp mã mới
+      </a>
     </div>
   </header>
 
@@ -66,6 +70,21 @@
       </div>
     </div>
 
+    <!-- Banner khuyến khích đóng góp mã từ người dùng -->
+    <div class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white p-4 rounded-2xl shadow-sm mb-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <span class="text-3xl">🎁</span>
+        <div>
+          <h3 class="font-bold text-sm">Bạn tìm được mã Grab hot mới?</h3>
+          <p class="text-xs text-emerald-100">Chia sẻ ngay để cộng đồng cùng săn voucher nhé!</p>
+        </div>
+      </div>
+      <!-- Bạn thay đường link Google Form / Zalo / Telegram của bạn vào href dưới đây -->
+      <a href="https://forms.google.com" target="_blank" class="bg-white text-emerald-700 font-bold text-xs px-4 py-2 rounded-xl shadow-sm hover:bg-emerald-50 transition shrink-0">
+        📩 Bổ sung mã ngay
+      </a>
+    </div>
+
     <div id="status-msg" class="text-xs text-gray-500 mb-4 px-1">Đang tải dữ liệu...</div>
     <div id="voucher-container" class="space-y-6"></div>
   </main>
@@ -79,12 +98,10 @@
   </div>
 
   <script>
-    // Link API Google Apps Script mới nhất của bạn
     const API_URL = "https://script.google.com/macros/s/AKfycbwr2lxE7-unaWrfgQPoNkf3WpqAz-ksVWCswYXFBhVQU1xrNnldVdPUFw2DZiHXU_Xq/exec";
     let allVouchers = [];
     let currentStatusFilter = 'all';
 
-    // Thời gian Cache: 5 phút = 5 * 60 * 1000 mili-giây
     const CACHE_DURATION = 5 * 60 * 1000; 
 
     async function fetchVouchers(forceRefresh = false) {
@@ -192,7 +209,6 @@
         return matchKeyword && matchStatus && matchAt && matchFor;
       });
 
-      // Sắp xếp thứ tự: THIENDONNHOM top 1 -> Lượt copy nhiều nhất -> Trạng thái
       filtered.sort((a, b) => {
         if (a.code.toUpperCase() === 'THIENDONNHOM') return -1;
         if (b.code.toUpperCase() === 'THIENDONNHOM') return 1;
@@ -210,7 +226,6 @@
         return score(a) - score(b);
       });
 
-      // Giới hạn chỉ hiển thị tối đa 3 mã Coming Soon ở tab "Tất cả"
       if (currentStatusFilter === 'all') {
         let comingSoonCount = 0;
         filtered = filtered.filter(item => {
@@ -260,11 +275,13 @@
 
     function renderCard(item) {
       const isTop1 = item.code.toUpperCase() === 'THIENDONNHOM';
+      const isAvailable = item.isTurnedOn && item.status.toLowerCase() === 'còn';
+      const isOutOfStock = item.isTurnedOn && item.status.toLowerCase() !== 'còn';
       
       let statusBadge = '';
       if (!item.isTurnedOn) {
         statusBadge = `<span class="bg-amber-100 text-amber-700 text-[11px] font-semibold px-2.5 py-0.5 rounded-full">⏳ COMING SOON</span>`;
-      } else if (item.status.toLowerCase() === 'còn') {
+      } else if (isAvailable) {
         statusBadge = `<span class="bg-emerald-100 text-emerald-700 text-[11px] font-semibold px-2.5 py-0.5 rounded-full">🟢 CÒN LƯỢT</span>`;
       } else {
         statusBadge = `<span class="bg-rose-100 text-rose-600 text-[11px] font-semibold px-2.5 py-0.5 rounded-full">🔴 HẾT LƯỢT</span>`;
@@ -274,6 +291,26 @@
 
       const displayCode = item.isTurnedOn ? item.code : "🔒 Sắp ra mắt...";
       const codeStyle = item.isTurnedOn ? (isTop1 ? 'text-red-600' : 'text-gray-900') : 'text-gray-400 italic';
+
+      // Xử lý hiển thị Nút Sao chép / Vô hiệu hóa
+      let actionButton = '';
+      if (!item.isTurnedOn) {
+        actionButton = `
+          <a href="https://www.tiktok.com/@grab.vietnam" target="_blank" class="bg-gray-200 text-gray-600 text-xs font-semibold px-4 py-2 rounded-xl hover:bg-gray-300 transition">
+            🔗 Săn trên Live
+          </a>`;
+      } else if (isAvailable) {
+        actionButton = `
+          <button onclick="copyCode('${item.code}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2 rounded-xl shadow transition active:scale-95 flex items-center gap-1.5">
+            📋 Sao chép
+          </button>`;
+      } else {
+        // Mã HẾT LƯỢT: Khóa nút không cho bấm sao chép
+        actionButton = `
+          <button disabled class="bg-gray-200 text-gray-400 text-xs font-semibold px-4 py-2 rounded-xl cursor-not-allowed flex items-center gap-1.5">
+            🚫 Hết lượt
+          </button>`;
+      }
 
       return `
         <div class="bg-white rounded-2xl ${cardBorder} p-4 transition flex flex-col justify-between">
@@ -304,13 +341,7 @@
 
           <div class="flex items-center justify-between pt-2 border-t border-gray-50">
             <span class="text-[11px] text-gray-400">Lưu & nhập tại bước thanh toán</span>
-            ${item.isTurnedOn ? `
-              <button onclick="copyCode('${item.code}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2 rounded-xl shadow transition active:scale-95 flex items-center gap-1.5">
-                📋 Sao chép
-              </button>` : `
-              <a href="https://www.tiktok.com/@grab.vietnam" target="_blank" class="bg-gray-200 text-gray-600 text-xs font-semibold px-4 py-2 rounded-xl hover:bg-gray-300 transition">
-                🔗 Săn trên Live
-              </a>`}
+            ${actionButton}
           </div>
         </div>
       `;
