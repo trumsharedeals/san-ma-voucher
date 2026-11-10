@@ -46,7 +46,7 @@
           <button onclick="setStatusFilter('all')" id="filter-all" class="px-4 py-1.5 rounded-xl text-xs font-semibold bg-emerald-600 text-white shadow-sm transition">Tất cả</button>
           <button onclick="setStatusFilter('còn')" id="filter-con" class="px-4 py-1.5 rounded-xl text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">Còn mã</button>
           <button onclick="setStatusFilter('coming')" id="filter-coming" class="px-4 py-1.5 rounded-xl text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">Coming Soon</button>
-          <button onclick="fetchVouchers()" class="ml-auto bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded-xl transition flex items-center gap-1">🔄 Làm mới</button>
+          <button onclick="fetchVouchers(true)" class="ml-auto bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded-xl transition flex items-center gap-1">🔄 Làm mới</button>
         </div>
       </div>
 
@@ -79,14 +79,31 @@
   </div>
 
   <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbw9PKvLpP6AQD0R_KXyGrxtuTgvhk7p4l8Exbyx_iP3YO1dnRVmDoR4Wtiz382DVfWG/exec";
+    // Link API Google Apps Script mới nhất của bạn
+    const API_URL = "https://script.google.com/macros/s/AKfycbwr2lxE7-unaWrfgQPoNkf3WpqAz-ksVWCswYXFBhVQU1xrNnldVdPUFw2DZiHXU_Xq/exec";
     let allVouchers = [];
     let currentStatusFilter = 'all';
 
-    async function fetchVouchers() {
+    // Thời gian Cache: 5 phút = 5 * 60 * 1000 mili-giây
+    const CACHE_DURATION = 5 * 60 * 1000; 
+
+    async function fetchVouchers(forceRefresh = false) {
       const container = document.getElementById('voucher-container');
       const msgEl = document.getElementById('status-msg');
-      msgEl.innerText = "Đang đồng bộ dữ liệu từ Sheet...";
+      
+      const cachedData = localStorage.getItem('voucher_cache');
+      const cachedTime = localStorage.getItem('voucher_cache_time');
+      const now = new Date().getTime();
+
+      if (!forceRefresh && cachedData && cachedTime && (now - cachedTime < CACHE_DURATION)) {
+        allVouchers = JSON.parse(cachedData);
+        msgEl.innerText = `Hiển thị ${allVouchers.length} mã (Đã tối ưu cache 5 phút)`;
+        updateFilterDropdowns();
+        filterVouchers();
+        return;
+      }
+
+      msgEl.innerText = "Đang đồng bộ dữ liệu mới từ Sheet...";
 
       try {
         const response = await fetch(API_URL);
@@ -94,6 +111,10 @@
 
         if (result.success && result.data.length > 0) {
           allVouchers = result.data;
+          
+          localStorage.setItem('voucher_cache', JSON.stringify(allVouchers));
+          localStorage.setItem('voucher_cache_time', now);
+
           updateFilterDropdowns();
           filterVouchers();
         } else {
@@ -101,8 +122,15 @@
           container.innerHTML = `<div class="bg-white text-center py-10 rounded-2xl text-gray-500 border border-gray-200">Chưa có mã voucher nào.</div>`;
         }
       } catch (error) {
-        msgEl.innerText = "Lỗi kết nối API Google Sheet.";
-        container.innerHTML = `<div class="bg-red-50 text-red-600 text-center py-6 rounded-2xl border border-red-200">Không thể kết nối đến Google Sheet.</div>`;
+        if (cachedData) {
+          allVouchers = JSON.parse(cachedData);
+          msgEl.innerText = "Không thể kết nối mạng, đang hiển thị dữ liệu lưu tạm.";
+          updateFilterDropdowns();
+          filterVouchers();
+        } else {
+          msgEl.innerText = "Lỗi kết nối API Google Sheet.";
+          container.innerHTML = `<div class="bg-red-50 text-red-600 text-center py-6 rounded-2xl border border-red-200">Không thể kết nối đến Google Sheet.</div>`;
+        }
       }
     }
 
@@ -153,7 +181,6 @@
         if (currentStatusFilter === 'còn') matchStatus = item.isTurnedOn && item.status.toLowerCase() === 'còn';
         if (currentStatusFilter === 'coming') matchStatus = !item.isTurnedOn;
 
-        // Mã "Cả nước" luôn hiện khi filter bất kỳ thành phố nào
         let matchAt = true;
         if (selectedAt) {
           const itemAt = item.applyAt ? item.applyAt.toLowerCase() : '';
@@ -165,19 +192,35 @@
         return matchKeyword && matchStatus && matchAt && matchFor;
       });
 
-      // Sắp xếp thứ tự: THIENDONNHOM top 1 -> Còn lượt -> Coming soon -> Hết lượt
+      // Sắp xếp thứ tự: THIENDONNHOM top 1 -> Lượt copy nhiều nhất -> Trạng thái
       filtered.sort((a, b) => {
         if (a.code.toUpperCase() === 'THIENDONNHOM') return -1;
         if (b.code.toUpperCase() === 'THIENDONNHOM') return 1;
 
+        if (b.copyCount !== a.copyCount) {
+          return b.copyCount - a.copyCount;
+        }
+
         const score = (item) => {
           if (item.isTurnedOn && item.status.toLowerCase() === 'còn') return 1;
-          if (!item.isTurnedOn) return 2; // Coming soon
-          return 3; // Hết lượt
+          if (!item.isTurnedOn) return 2;
+          return 3;
         };
 
         return score(a) - score(b);
       });
+
+      // Giới hạn chỉ hiển thị tối đa 3 mã Coming Soon ở tab "Tất cả"
+      if (currentStatusFilter === 'all') {
+        let comingSoonCount = 0;
+        filtered = filtered.filter(item => {
+          if (!item.isTurnedOn) {
+            comingSoonCount++;
+            return comingSoonCount <= 3;
+          }
+          return true;
+        });
+      }
 
       renderGroupedVouchers(filtered);
     }
