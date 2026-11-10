@@ -7,8 +7,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>body { font-family: 'Inter', sans-serif; }</style>
-  
-  <!-- Google tag (gtag.js) - Google Analytics -->
+
+  <!-- Google tag (gtag.js) - Google Analytics chuẩn -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-DTTCMQWZ0L"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -96,7 +96,7 @@
   </div>
 
   <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbxluIy6MkdFU6OcDZQvoyhnoD1tV9TO0Hknf9GbGnDaxJw43wy4WS8FVMh2Ek24Z_kk/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbyrtAHUs2ibCQrlqHCgWptKDcOFV7vqc5Ime3q9yLQImXk6AyvJFdzb-WDtTyUdgsqj/exec";
     let allVouchers = [];
     let currentStatusFilter = 'all';
 
@@ -262,7 +262,6 @@
             <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-emerald-500"></span> ${groupName} (${items.length})
             </h2>
-            <!-- Đã đổi từ grid-cols-1 thành grid-cols-2 để hiển thị 2 mã nằm ngang trên điện thoại -->
             <div class="grid grid-cols-2 gap-2 sm:gap-4">
               ${items.map(item => renderCard(item)).join('')}
             </div>
@@ -291,9 +290,10 @@
 
       let actionButtons = '';
       if (!item.isTurnedOn) {
+        // Nút "Săn Live" đã chuyển sang màu Vàng nổi bật (bg-amber-400)
         actionButtons = `
-          <a href="https://www.tiktok.com/@grab.vietnam" target="_blank" class="w-full text-center bg-gray-200 text-gray-600 text-[10px] sm:text-xs font-semibold py-1.5 px-2 rounded-xl hover:bg-gray-300 transition">
-            🔗 Săn Live
+          <a href="https://www.tiktok.com/@grab.vietnam" target="_blank" class="w-full text-center bg-amber-400 hover:bg-amber-500 text-amber-950 font-bold text-[10px] sm:text-xs py-1.5 px-2 rounded-xl shadow transition">
+            🎬 Săn Live
           </a>`;
       } else if (isAvailable) {
         actionButtons = `
@@ -331,7 +331,7 @@
             ${!item.isTurnedOn && item.publishTime ? `
               <div class="bg-indigo-50 p-2 rounded-xl mb-2 border border-indigo-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1">
                 <span class="text-[10px] sm:text-xs text-indigo-700 font-medium">⏰ ${item.publishTime}</span>
-                <a href="https://www.tiktok.com/@grab.vietnam" target="_blank" class="bg-black text-white text-[10px] font-bold px-2 py-0.5 rounded">Xem Live</a>
+                <a href="https://www.tiktok.com/@grab.vietnam" target="_blank" class="bg-amber-400 hover:bg-amber-500 text-amber-950 font-bold text-[10px] px-2 py-0.5 rounded">🎬 Săn Live</a>
               </div>` : ''}
           </div>
 
