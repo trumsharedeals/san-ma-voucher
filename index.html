@@ -28,8 +28,7 @@
         </h1>
         <p class="text-emerald-100 text-sm mt-1">Update liên tục mã giảm giá nhập tay của Grab 11.11</p>
       </div>
-      <!-- Nút bổ sung mã cho người dùng -->
-      <a href="https://zalo.me" target="_blank" class="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold text-xs px-4 py-2.5 rounded-xl shadow transition flex items-center gap-2">
+      <a href="https://www.threads.com/@caubelamweb" target="_blank" class="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold text-xs px-4 py-2.5 rounded-xl shadow transition flex items-center gap-2">
         <span>➕</span> Đóng góp mã mới
       </a>
     </div>
@@ -70,18 +69,17 @@
       </div>
     </div>
 
-    <!-- Banner khuyến khích đóng góp mã từ người dùng -->
+    <!-- Banner đóng góp mã dẫn qua Threads -->
     <div class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white p-4 rounded-2xl shadow-sm mb-6 flex flex-col sm:flex-row items-center justify-between gap-3">
       <div class="flex items-center gap-3">
         <span class="text-3xl">🎁</span>
         <div>
           <h3 class="font-bold text-sm">Bạn tìm được mã Grab hot mới?</h3>
-          <p class="text-xs text-emerald-100">Chia sẻ ngay để cộng đồng cùng săn voucher nhé!</p>
+          <p class="text-xs text-emerald-100">Chia sẻ ngay qua Threads để cộng đồng cùng săn voucher nhé!</p>
         </div>
       </div>
-      <!-- Bạn thay đường link Google Form / Zalo / Telegram của bạn vào href dưới đây -->
       <a href="https://www.threads.com/@caubelamweb" target="_blank" class="bg-white text-emerald-700 font-bold text-xs px-4 py-2 rounded-xl shadow-sm hover:bg-emerald-50 transition shrink-0">
-        📩 Bổ sung mã ngay
+        💬 Nhắn qua Threads
       </a>
     </div>
 
@@ -98,7 +96,7 @@
   </div>
 
   <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbwr2lxE7-unaWrfgQPoNkf3WpqAz-ksVWCswYXFBhVQU1xrNnldVdPUFw2DZiHXU_Xq/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbyrtAHUs2ibCQrlqHCgWptKDcOFV7vqc5Ime3q9yLQImXk6AyvJFdzb-WDtTyUdgsqj/exec";
     let allVouchers = [];
     let currentStatusFilter = 'all';
 
@@ -264,7 +262,8 @@
             <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-emerald-500"></span> ${groupName} (${items.length})
             </h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Đã đổi từ grid-cols-1 thành grid-cols-2 để hiển thị 2 mã nằm ngang trên điện thoại -->
+            <div class="grid grid-cols-2 gap-2 sm:gap-4">
               ${items.map(item => renderCard(item)).join('')}
             </div>
           </div>
@@ -276,72 +275,69 @@
     function renderCard(item) {
       const isTop1 = item.code.toUpperCase() === 'THIENDONNHOM';
       const isAvailable = item.isTurnedOn && item.status.toLowerCase() === 'còn';
-      const isOutOfStock = item.isTurnedOn && item.status.toLowerCase() !== 'còn';
       
       let statusBadge = '';
       if (!item.isTurnedOn) {
-        statusBadge = `<span class="bg-amber-100 text-amber-700 text-[11px] font-semibold px-2.5 py-0.5 rounded-full">⏳ COMING SOON</span>`;
+        statusBadge = `<span class="bg-amber-100 text-amber-700 text-[9px] sm:text-[11px] font-semibold px-1.5 sm:px-2.5 py-0.5 rounded-full">⏳ SOON</span>`;
       } else if (isAvailable) {
-        statusBadge = `<span class="bg-emerald-100 text-emerald-700 text-[11px] font-semibold px-2.5 py-0.5 rounded-full">🟢 CÒN LƯỢT</span>`;
+        statusBadge = `<span class="bg-emerald-100 text-emerald-700 text-[9px] sm:text-[11px] font-semibold px-1.5 sm:px-2.5 py-0.5 rounded-full">🟢 CÒN</span>`;
       } else {
-        statusBadge = `<span class="bg-rose-100 text-rose-600 text-[11px] font-semibold px-2.5 py-0.5 rounded-full">🔴 HẾT LƯỢT</span>`;
+        statusBadge = `<span class="bg-rose-100 text-rose-600 text-[9px] sm:text-[11px] font-semibold px-1.5 sm:px-2.5 py-0.5 rounded-full">🔴 HẾT</span>`;
       }
 
       const cardBorder = isTop1 ? 'border-2 border-red-500 shadow-md ring-2 ring-red-100' : 'border border-gray-200 shadow-sm hover:shadow-md';
-
       const displayCode = item.isTurnedOn ? item.code : "🔒 Sắp ra mắt...";
-      const codeStyle = item.isTurnedOn ? (isTop1 ? 'text-red-600' : 'text-gray-900') : 'text-gray-400 italic';
+      const codeStyle = item.isTurnedOn ? (isTop1 ? 'text-red-600 text-xs sm:text-lg' : 'text-gray-900 text-xs sm:text-lg') : 'text-gray-400 italic text-xs sm:text-base';
 
-      // Xử lý hiển thị Nút Sao chép / Vô hiệu hóa
-      let actionButton = '';
+      let actionButtons = '';
       if (!item.isTurnedOn) {
-        actionButton = `
-          <a href="https://www.tiktok.com/@grab.vietnam" target="_blank" class="bg-gray-200 text-gray-600 text-xs font-semibold px-4 py-2 rounded-xl hover:bg-gray-300 transition">
-            🔗 Săn trên Live
+        actionButtons = `
+          <a href="https://www.tiktok.com/@grab.vietnam" target="_blank" class="w-full text-center bg-gray-200 text-gray-600 text-[10px] sm:text-xs font-semibold py-1.5 px-2 rounded-xl hover:bg-gray-300 transition">
+            🔗 Săn Live
           </a>`;
       } else if (isAvailable) {
-        actionButton = `
-          <button onclick="copyCode('${item.code}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2 rounded-xl shadow transition active:scale-95 flex items-center gap-1.5">
-            📋 Sao chép
-          </button>`;
+        actionButtons = `
+          <div class="flex items-center gap-1 w-full justify-between">
+            <button onclick="reportOutOfStock('${item.code}')" title="Báo hết" class="bg-gray-100 hover:bg-rose-50 text-gray-500 hover:text-rose-600 text-[10px] sm:text-[11px] font-medium px-2 py-1.5 rounded-xl border border-gray-200 transition">
+              🚨 Báo hết
+            </button>
+            <button onclick="copyCode('${item.code}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] sm:text-xs font-semibold py-1.5 px-3 rounded-xl shadow transition active:scale-95 flex items-center justify-center gap-1">
+              📋 Sao chép
+            </button>
+          </div>`;
       } else {
-        // Mã HẾT LƯỢT: Khóa nút không cho bấm sao chép
-        actionButton = `
-          <button disabled class="bg-gray-200 text-gray-400 text-xs font-semibold px-4 py-2 rounded-xl cursor-not-allowed flex items-center gap-1.5">
+        actionButtons = `
+          <button disabled class="w-full bg-gray-200 text-gray-400 text-[10px] sm:text-xs font-semibold py-1.5 rounded-xl cursor-not-allowed">
             🚫 Hết lượt
           </button>`;
       }
 
       return `
-        <div class="bg-white rounded-2xl ${cardBorder} p-4 transition flex flex-col justify-between">
+        <div class="bg-white rounded-2xl ${cardBorder} p-3 sm:p-4 transition flex flex-col justify-between">
           <div>
-            <div class="flex items-center justify-between gap-2 border-b border-gray-100 pb-3 mb-3">
-              <div class="flex items-center gap-2">
-                <span class="font-mono text-lg font-bold ${codeStyle} tracking-wide">${displayCode}</span>
-                ${isTop1 ? '<span class="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">Được lấy nhiều nhất</span>' : ''}
-              </div>
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 border-b border-gray-100 pb-2 mb-2">
+              <span class="font-mono font-bold ${codeStyle} tracking-wide truncate max-w-full">${displayCode}</span>
               ${statusBadge}
             </div>
+            ${isTop1 ? '<div class="mb-2"><span class="bg-red-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm">Được lấy nhiều nhất</span></div>' : ''}
 
-            <div class="flex items-center justify-between text-xs text-gray-500 mb-2">
+            <div class="text-[10px] sm:text-xs text-gray-500 mb-2 space-y-0.5">
               <div>📍 ${item.applyAt || 'Cả nước'}</div>
               <div>🍽️ ${item.applyFor || 'Grab'}</div>
             </div>
 
-            ${item.note ? `<div class="text-xs text-amber-800 bg-amber-50 p-2.5 rounded-xl mb-3 border border-amber-100">📌 ${item.note}</div>` : ''}
+            ${item.note ? `<div class="text-[10px] sm:text-xs text-amber-800 bg-amber-50 p-2 rounded-xl mb-2 border border-amber-100">📌 ${item.note}</div>` : ''}
             
             ${!item.isTurnedOn && item.publishTime ? `
-              <div class="bg-indigo-50 p-2.5 rounded-xl mb-3 border border-indigo-100 flex items-center justify-between">
-                <span class="text-xs text-indigo-700 font-medium">⏰ Lên mã lúc: ${item.publishTime}</span>
-                <a href="https://www.tiktok.com/@grab.vietnam" target="_blank" class="bg-black hover:bg-gray-800 text-white text-[11px] font-bold px-2.5 py-1 rounded-lg shadow transition flex items-center gap-1">
-                  🎬 Xem Live
-                </a>
+              <div class="bg-indigo-50 p-2 rounded-xl mb-2 border border-indigo-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1">
+                <span class="text-[10px] sm:text-xs text-indigo-700 font-medium">⏰ ${item.publishTime}</span>
+                <a href="https://www.tiktok.com/@grab.vietnam" target="_blank" class="bg-black text-white text-[10px] font-bold px-2 py-0.5 rounded">Xem Live</a>
               </div>` : ''}
           </div>
 
-          <div class="flex items-center justify-between pt-2 border-t border-gray-50">
-            <span class="text-[11px] text-gray-400">Lưu & nhập tại bước thanh toán</span>
-            ${actionButton}
+          <div class="pt-2 border-t border-gray-50 flex flex-col gap-1">
+            <span class="text-[9px] sm:text-[11px] text-gray-400 hidden sm:block">Lưu & nhập tại thanh toán</span>
+            ${actionButtons}
           </div>
         </div>
       `;
@@ -349,11 +345,20 @@
 
     function copyCode(code) {
       navigator.clipboard.writeText(code);
-      const toast = document.getElementById('toast');
-      toast.classList.remove('opacity-0');
-      setTimeout(() => toast.classList.add('opacity-0'), 2000);
-
+      showToast("Đã sao chép mã!");
       fetch(`${API_URL}?action=copy&code=${encodeURIComponent(code)}`).catch(err => console.log(err));
+    }
+
+    function reportOutOfStock(code) {
+      showToast("Cảm ơn bạn! Hệ thống đã ghi nhận báo hết mã.");
+      fetch(`${API_URL}?action=report&code=${encodeURIComponent(code)}`).catch(err => console.log(err));
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.innerText = message;
+      toast.classList.remove('opacity-0');
+      setTimeout(() => toast.classList.add('opacity-0'), 2500);
     }
 
     fetchVouchers();
