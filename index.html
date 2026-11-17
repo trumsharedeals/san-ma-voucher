@@ -8,7 +8,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>body { font-family: 'Inter', sans-serif; }</style>
 
-  <!-- Google tag (gtag.js) - Google Analytics chuẩn -->
+  <!-- Google tag (gtag.js) - Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-DTTCMQWZ0L"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -26,7 +26,7 @@
         <h1 class="text-2xl sm:text-3xl font-bold flex items-center gap-2">
           <span>🎟️</span> Voucher Hunter
         </h1>
-        <p class="text-emerald-100 text-sm mt-1">Update liên tục mã giảm giá nhập tay của Grab 11.11</p>
+        <p class="text-emerald-100 text-sm mt-1">Update liên tục mã giảm giá nhập tay của Grab</p>
       </div>
       <a href="https://www.threads.com/@caubelamweb" target="_blank" class="bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold text-xs px-4 py-2.5 rounded-xl shadow transition flex items-center gap-2">
         <span>➕</span> Đóng góp mã mới
@@ -96,7 +96,7 @@
   </div>
 
   <script>
-    const API_URL = "https://script.google.com/macros/s/AKfycbyrtAHUs2ibCQrlqHCgWptKDcOFV7vqc5Ime3q9yLQImXk6AyvJFdzb-WDtTyUdgsqj/exec";
+    const API_URL = "https://script.google.com/macros/s/AKfycbz1qs5GCIUrb_4ddbU5C_TIHoPKNTXKg3pjki0U3Dym_SZ3aBhKpv--d6kq28oT3UKZ/exec";
     let allVouchers = [];
     let currentStatusFilter = 'all';
 
@@ -190,7 +190,9 @@
       const selectedFor = document.getElementById('filter-apply-for').value;
 
       let filtered = allVouchers.filter(item => {
-        const matchKeyword = item.isTurnedOn ? (item.code.toLowerCase().includes(keyword) || (item.note && item.note.toLowerCase().includes(keyword))) : (item.note && item.note.toLowerCase().includes(keyword));
+        const matchKeyword = item.isTurnedOn 
+          ? (item.code.toLowerCase().includes(keyword) || (item.note && item.note.toLowerCase().includes(keyword))) 
+          : (item.note && item.note.toLowerCase().includes(keyword));
         
         let matchStatus = true;
         if (currentStatusFilter === 'còn') matchStatus = item.isTurnedOn && item.status.toLowerCase() === 'còn';
@@ -207,21 +209,18 @@
         return matchKeyword && matchStatus && matchAt && matchFor;
       });
 
+      // Sắp xếp ưu tiên: (1) Trạng thái (Còn mã -> Coming Soon -> Hết lượt) -> (2) Lượt claim giảm dần (cột H)
       filtered.sort((a, b) => {
-        if (a.code.toUpperCase() === 'THIENDONNHOM') return -1;
-        if (b.code.toUpperCase() === 'THIENDONNHOM') return 1;
-
-        if (b.copyCount !== a.copyCount) {
-          return b.copyCount - a.copyCount;
-        }
-
         const score = (item) => {
           if (item.isTurnedOn && item.status.toLowerCase() === 'còn') return 1;
           if (!item.isTurnedOn) return 2;
           return 3;
         };
 
-        return score(a) - score(b);
+        const statusDiff = score(a) - score(b);
+        if (statusDiff !== 0) return statusDiff;
+
+        return (b.copyCount || 0) - (a.copyCount || 0);
       });
 
       if (currentStatusFilter === 'all') {
@@ -248,6 +247,17 @@
         return;
       }
 
+      // Tìm mã Top 1 thực tế: (1) Còn mã + (2) Có lượt claim (cột H) cao nhất & > 0
+      let top1Code = null;
+      let maxClaims = 0;
+      vouchers.forEach(item => {
+        const isAvailable = item.isTurnedOn && item.status.toLowerCase() === 'còn';
+        if (isAvailable && (item.copyCount || 0) > maxClaims) {
+          maxClaims = item.copyCount;
+          top1Code = item.code.toUpperCase();
+        }
+      });
+
       const groups = {};
       vouchers.forEach(item => {
         const groupKey = item.applyFor ? item.applyFor : "Khác";
@@ -257,13 +267,25 @@
 
       let html = '';
       for (const [groupName, items] of Object.entries(groups)) {
+        // Sắp xếp lại các mã trong cùng 1 vertical theo lượt claim giảm dần
+        items.sort((a, b) => {
+          const score = (item) => {
+            if (item.isTurnedOn && item.status.toLowerCase() === 'còn') return 1;
+            if (!item.isTurnedOn) return 2;
+            return 3;
+          };
+          const statusDiff = score(a) - score(b);
+          if (statusDiff !== 0) return statusDiff;
+          return (b.copyCount || 0) - (a.copyCount || 0);
+        });
+
         html += `
           <div class="mb-6">
             <h2 class="text-sm font-bold text-gray-700 uppercase tracking-wider mb-3 flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-emerald-500"></span> ${groupName} (${items.length})
             </h2>
             <div class="grid grid-cols-2 gap-2 sm:gap-4">
-              ${items.map(item => renderCard(item)).join('')}
+              ${items.map(item => renderCard(item, top1Code)).join('')}
             </div>
           </div>
         `;
@@ -271,10 +293,15 @@
       container.innerHTML = html;
     }
 
-    function renderCard(item) {
-      const isTop1 = item.code.toUpperCase() === 'THIENDONNHOM';
+    function renderCard(item, top1Code) {
       const isAvailable = item.isTurnedOn && item.status.toLowerCase() === 'còn';
+      const isTop1 = isAvailable && top1Code && item.code.toUpperCase() === top1Code;
       
+      // Kiểm tra tỷ lệ report (cột K) > 10% so với lượt claim (cột H)
+      const claims = item.copyCount || 0;
+      const reports = item.reportCount || 0;
+      const hasHighReportRate = claims > 0 && (reports / claims) > 0.1;
+
       let statusBadge = '';
       if (!item.isTurnedOn) {
         statusBadge = `<span class="bg-amber-100 text-amber-700 text-[9px] sm:text-[11px] font-semibold px-1.5 sm:px-2.5 py-0.5 rounded-full">⏳ SOON</span>`;
@@ -290,7 +317,6 @@
 
       let actionButtons = '';
       if (!item.isTurnedOn) {
-        // Nút "Săn Live" đã chuyển sang màu Vàng nổi bật (bg-amber-400)
         actionButtons = `
           <a href="https://www.tiktok.com/@grab.vietnam" target="_blank" class="w-full text-center bg-amber-400 hover:bg-amber-500 text-amber-950 font-bold text-[10px] sm:text-xs py-1.5 px-2 rounded-xl shadow transition">
             🎬 Săn Live
@@ -319,7 +345,13 @@
               <span class="font-mono font-bold ${codeStyle} tracking-wide truncate max-w-full">${displayCode}</span>
               ${statusBadge}
             </div>
-            ${isTop1 ? '<div class="mb-2"><span class="bg-red-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm">Được lấy nhiều nhất</span></div>' : ''}
+            
+            ${(isTop1 || hasHighReportRate) ? `
+              <div class="flex flex-wrap gap-1 mb-2">
+                ${isTop1 ? '<span class="bg-red-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm">🔥 Được lấy nhiều nhất</span>' : ''}
+                ${hasHighReportRate ? '<span class="bg-orange-100 text-orange-800 border border-orange-300 text-[9px] font-semibold px-1.5 py-0.5 rounded">⚠️ Có điều kiện user</span>' : ''}
+              </div>
+            ` : ''}
 
             <div class="text-[10px] sm:text-xs text-gray-500 mb-2 space-y-0.5">
               <div>📍 ${item.applyAt || 'Cả nước'}</div>
