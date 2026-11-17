@@ -48,7 +48,6 @@
         <div class="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
           <button onclick="setStatusFilter('all')" id="filter-all" class="px-4 py-1.5 rounded-xl text-xs font-semibold bg-emerald-600 text-white shadow-sm transition">Tất cả</button>
           <button onclick="setStatusFilter('còn')" id="filter-con" class="px-4 py-1.5 rounded-xl text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">Còn mã</button>
-          <button onclick="setStatusFilter('coming')" id="filter-coming" class="px-4 py-1.5 rounded-xl text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition">Coming Soon</button>
           <button onclick="fetchVouchers(true)" class="ml-auto bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-1.5 rounded-xl transition flex items-center gap-1">🔄 Làm mới</button>
         </div>
       </div>
@@ -125,7 +124,8 @@
         const result = await response.json();
 
         if (result.success && result.data.length > 0) {
-          allVouchers = result.data;
+          // Lọc bỏ hoàn toàn các mã có trạng thái bật/tắt là Coming Soon hoặc chưa bật từ dữ liệu gốc
+          allVouchers = result.data.filter(item => item.isTurnedOn);
           
           localStorage.setItem('voucher_cache', JSON.stringify(allVouchers));
           localStorage.setItem('voucher_cache_time', now);
@@ -173,12 +173,14 @@
 
     function setStatusFilter(status) {
       currentStatusFilter = status;
-      ['all', 'con', 'coming'].forEach(s => {
+      ['all', 'con'].forEach(s => {
         const btn = document.getElementById(`filter-${s}`);
-        if (s === status) {
-          btn.className = "px-4 py-1.5 rounded-xl text-xs font-semibold bg-emerald-600 text-white shadow-sm transition";
-        } else {
-          btn.className = "px-4 py-1.5 rounded-xl text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition";
+        if (btn) {
+          if (s === status) {
+            btn.className = "px-4 py-1.5 rounded-xl text-xs font-semibold bg-emerald-600 text-white shadow-sm transition";
+          } else {
+            btn.className = "px-4 py-1.5 rounded-xl text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200 transition";
+          }
         }
       });
       filterVouchers();
@@ -190,13 +192,10 @@
       const selectedFor = document.getElementById('filter-apply-for').value;
 
       let filtered = allVouchers.filter(item => {
-        const matchKeyword = item.isTurnedOn 
-          ? (item.code.toLowerCase().includes(keyword) || (item.note && item.note.toLowerCase().includes(keyword))) 
-          : (item.note && item.note.toLowerCase().includes(keyword));
+        const matchKeyword = item.code.toLowerCase().includes(keyword) || (item.note && item.note.toLowerCase().includes(keyword));
         
         let matchStatus = true;
-        if (currentStatusFilter === 'còn') matchStatus = item.isTurnedOn && item.status.toLowerCase() === 'còn';
-        if (currentStatusFilter === 'coming') matchStatus = !item.isTurnedOn;
+        if (currentStatusFilter === 'còn') matchStatus = item.status.toLowerCase() === 'còn';
 
         let matchAt = true;
         if (selectedAt) {
@@ -208,31 +207,6 @@
 
         return matchKeyword && matchStatus && matchAt && matchFor;
       });
-
-      // Sắp xếp ưu tiên: (1) Trạng thái (Còn mã -> Coming Soon -> Hết lượt) -> (2) Lượt claim giảm dần (cột H)
-      filtered.sort((a, b) => {
-        const score = (item) => {
-          if (item.isTurnedOn && item.status.toLowerCase() === 'còn') return 1;
-          if (!item.isTurnedOn) return 2;
-          return 3;
-        };
-
-        const statusDiff = score(a) - score(b);
-        if (statusDiff !== 0) return statusDiff;
-
-        return (b.copyCount || 0) - (a.copyCount || 0);
-      });
-
-      if (currentStatusFilter === 'all') {
-        let comingSoonCount = 0;
-        filtered = filtered.filter(item => {
-          if (!item.isTurnedOn) {
-            comingSoonCount++;
-            return comingSoonCount <= 3;
-          }
-          return true;
-        });
-      }
 
       renderGroupedVouchers(filtered);
     }
@@ -251,7 +225,7 @@
       let top1Code = null;
       let maxClaims = 0;
       vouchers.forEach(item => {
-        const isAvailable = item.isTurnedOn && item.status.toLowerCase() === 'còn';
+        const isAvailable = item.status.toLowerCase() === 'còn';
         if (isAvailable && (item.copyCount || 0) > maxClaims) {
           maxClaims = item.copyCount;
           top1Code = item.code.toUpperCase();
@@ -267,13 +241,9 @@
 
       let html = '';
       for (const [groupName, items] of Object.entries(groups)) {
-        // Sắp xếp lại các mã trong cùng 1 vertical theo lượt claim giảm dần
+        // Sắp xếp các mã trong cùng 1 vertical: Còn mã lên trước, sau đó xếp theo lượt claim giảm dần
         items.sort((a, b) => {
-          const score = (item) => {
-            if (item.isTurnedOn && item.status.toLowerCase() === 'còn') return 1;
-            if (!item.isTurnedOn) return 2;
-            return 3;
-          };
+          const score = (item) => (item.status.toLowerCase() === 'còn' ? 1 : 2);
           const statusDiff = score(a) - score(b);
           if (statusDiff !== 0) return statusDiff;
           return (b.copyCount || 0) - (a.copyCount || 0);
@@ -294,34 +264,26 @@
     }
 
     function renderCard(item, top1Code) {
-      const isAvailable = item.isTurnedOn && item.status.toLowerCase() === 'còn';
+      const isAvailable = item.status.toLowerCase() === 'còn';
       const isTop1 = isAvailable && top1Code && item.code.toUpperCase() === top1Code;
       
-      // Kiểm tra tỷ lệ report (cột K) > 10% so với lượt claim (cột H)
       const claims = item.copyCount || 0;
       const reports = item.reportCount || 0;
       const hasHighReportRate = claims > 0 && (reports / claims) > 0.1;
 
       let statusBadge = '';
-      if (!item.isTurnedOn) {
-        statusBadge = `<span class="bg-amber-100 text-amber-700 text-[9px] sm:text-[11px] font-semibold px-1.5 sm:px-2.5 py-0.5 rounded-full">⏳ SOON</span>`;
-      } else if (isAvailable) {
+      if (isAvailable) {
         statusBadge = `<span class="bg-emerald-100 text-emerald-700 text-[9px] sm:text-[11px] font-semibold px-1.5 sm:px-2.5 py-0.5 rounded-full">🟢 CÒN</span>`;
       } else {
         statusBadge = `<span class="bg-rose-100 text-rose-600 text-[9px] sm:text-[11px] font-semibold px-1.5 sm:px-2.5 py-0.5 rounded-full">🔴 HẾT</span>`;
       }
 
       const cardBorder = isTop1 ? 'border-2 border-red-500 shadow-md ring-2 ring-red-100' : 'border border-gray-200 shadow-sm hover:shadow-md';
-      const displayCode = item.isTurnedOn ? item.code : "🔒 Sắp ra mắt...";
-      const codeStyle = item.isTurnedOn ? (isTop1 ? 'text-red-600 text-xs sm:text-lg' : 'text-gray-900 text-xs sm:text-lg') : 'text-gray-400 italic text-xs sm:text-base';
+      const displayCode = item.code;
+      const codeStyle = isTop1 ? 'text-red-600 text-xs sm:text-lg' : 'text-gray-900 text-xs sm:text-lg';
 
       let actionButtons = '';
-      if (!item.isTurnedOn) {
-        actionButtons = `
-          <a href="https://www.tiktok.com/@grab.vietnam" target="_blank" class="w-full text-center bg-amber-400 hover:bg-amber-500 text-amber-950 font-bold text-[10px] sm:text-xs py-1.5 px-2 rounded-xl shadow transition">
-            🎬 Săn Live
-          </a>`;
-      } else if (isAvailable) {
+      if (isAvailable) {
         actionButtons = `
           <div class="flex items-center gap-1 w-full justify-between">
             <button onclick="reportOutOfStock('${item.code}')" title="Báo hết" class="bg-gray-100 hover:bg-rose-50 text-gray-500 hover:text-rose-600 text-[10px] sm:text-[11px] font-medium px-2 py-1.5 rounded-xl border border-gray-200 transition">
@@ -359,12 +321,6 @@
             </div>
 
             ${item.note ? `<div class="text-[10px] sm:text-xs text-amber-800 bg-amber-50 p-2 rounded-xl mb-2 border border-amber-100">📌 ${item.note}</div>` : ''}
-            
-            ${!item.isTurnedOn && item.publishTime ? `
-              <div class="bg-indigo-50 p-2 rounded-xl mb-2 border border-indigo-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1">
-                <span class="text-[10px] sm:text-xs text-indigo-700 font-medium">⏰ ${item.publishTime}</span>
-                <a href="https://www.tiktok.com/@grab.vietnam" target="_blank" class="bg-amber-400 hover:bg-amber-500 text-amber-950 font-bold text-[10px] px-2 py-0.5 rounded">🎬 Săn Live</a>
-              </div>` : ''}
           </div>
 
           <div class="pt-2 border-t border-gray-50 flex flex-col gap-1">
